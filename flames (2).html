@@ -1,0 +1,1017 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>FLAMES — the margin game</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Kalam:wght@400;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper: #FAF6EC;
+    --paper-2: #F5EFE0;
+    --rule: #C3D6EA;
+    --margin: #E7A9A0;
+    --ink: #1F3A5F;
+    --ink-soft: #4C6386;
+    --pen-red: #B23A2F;
+    --pen-green: #2E6B4F;
+    --pen-gold: #A9781F;
+    --shadow: rgba(31,58,95,0.14);
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    height: 100vh;
+    height: 100dvh;
+    background-color: var(--paper);
+    background-image:
+      repeating-linear-gradient(to bottom, transparent, transparent 30px, var(--rule) 31px);
+    background-position: 0 70px;
+    color: var(--ink);
+    font-family: 'Kalam', cursive;
+    -webkit-font-smoothing: antialiased;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* spiral binding along the left edge */
+  .binding{
+    position: fixed;
+    left: 8px; top: 0; bottom: 0;
+    width: 16px;
+    z-index: 5;
+    pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+  }
+  .binding span{
+    width: 12px; height: 12px;
+    border-radius: 50%;
+    background:
+      radial-gradient(circle at 35% 30%, #ffffff 0%, #d8d2c2 35%, #a49c86 60%, #8c8470 100%);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.25) inset, 0 1px 1px rgba(0,0,0,0.2);
+  }
+
+  .margin-line{
+    position: fixed;
+    left: 52px; top: 0; bottom: 0;
+    width: 2px;
+    background: var(--margin);
+    opacity: 0.75;
+    z-index: 1;
+  }
+
+  main.sheet{
+    position: relative;
+    z-index: 2;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 14px 24px 10px 74px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  header{ display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; flex: 0 0 auto; }
+  .title{
+    font-family: 'Caveat', cursive;
+    font-weight: 700;
+    font-size: clamp(28px, 4vw, 38px);
+    line-height: 1;
+    margin: 0;
+    color: var(--ink);
+    letter-spacing: .5px;
+  }
+  .title .flame-dot{
+    color: var(--pen-red);
+    display: inline-block;
+    animation: flicker 2.6s ease-in-out infinite;
+  }
+  @keyframes flicker{ 0%,100%{ opacity:1; transform:scale(1); } 50%{ opacity:.55; transform:scale(.85); } }
+  .subtitle{
+    font-family: 'Kalam', cursive;
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin: 0;
+  }
+
+  .corner-fold{
+    position: fixed;
+    top: 0; right: 0;
+    width: 38px; height: 38px;
+    z-index: 6;
+    pointer-events: none;
+    background: linear-gradient(135deg, transparent 50%, var(--paper-2) 50%);
+    box-shadow: -3px 3px 5px var(--shadow);
+  }
+
+  /* ---------- input bar ---------- */
+  .input-section{
+    display: flex;
+    align-items: flex-end;
+    gap: 14px;
+    flex-wrap: wrap;
+    flex: 0 0 auto;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--rule);
+  }
+  .field{ display:flex; flex-direction:column; gap:2px; flex: 1 1 180px; min-width: 140px; }
+  .field-label{
+    font-family:'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+  }
+  .ruled-input{
+    font-family:'Caveat', cursive;
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid var(--ink-soft);
+    padding: 2px 4px 4px 4px;
+    outline: none;
+    width: 100%;
+  }
+  .ruled-input::placeholder{ color: #A9B4C4; font-family:'Kalam',cursive; font-size:15px; }
+  .ruled-input:focus{ border-bottom-color: var(--pen-red); }
+  .ruled-input:focus-visible{ outline: 2px dashed var(--pen-red); outline-offset: 3px; }
+
+  .go-row{ display:flex; align-items:center; gap:10px; flex: 0 0 auto; padding-bottom: 2px; }
+  .go-btn{
+    font-family:'Kalam', cursive;
+    font-weight: 700;
+    font-size: 14px;
+    color: var(--ink);
+    background: var(--paper-2);
+    border: 2px solid var(--ink);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    padding: 7px 18px;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, background .2s ease, opacity .2s ease;
+    box-shadow: 2px 2px 0 var(--shadow);
+    white-space: nowrap;
+  }
+  .go-btn:hover:not(:disabled){ transform: translate(-2px,-2px); box-shadow: 4px 4px 0 var(--shadow); }
+  .go-btn:active:not(:disabled){ transform: translate(0,0); box-shadow: 1px 1px 0 var(--shadow); }
+  .go-btn:focus-visible{ outline: 2px dashed var(--pen-red); outline-offset: 3px; }
+  .go-btn:disabled{ cursor: default; opacity: .65; }
+  .go-btn.loading{ position: relative; }
+  .go-btn.loading::after{
+    content: "";
+    display: inline-block;
+    width: 5px; height: 5px;
+    margin-left: 6px;
+    border-radius: 50%;
+    background: var(--ink);
+    animation: dotPulse 1s ease-in-out infinite;
+    vertical-align: middle;
+  }
+  @keyframes dotPulse{ 0%,100%{ opacity:.25; } 50%{ opacity:1; } }
+
+  .reset-btn{
+    font-family:'Kalam', cursive;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink-soft);
+    background: transparent;
+    border: 2px solid transparent;
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    padding: 6px 14px;
+    cursor: pointer;
+    transition: color .15s ease, border-color .15s ease, transform .15s ease;
+    white-space: nowrap;
+  }
+  .reset-btn:hover{ color: var(--pen-red); border-color: var(--pen-red); transform: translateY(-1px); }
+  .reset-btn:active{ transform: translateY(0); }
+  .reset-btn:focus-visible{ outline: 2px dashed var(--pen-red); outline-offset: 3px; }
+  .reset-btn .reset-icon{ display:inline-block; transition: transform .3s ease; }
+  .reset-btn:hover .reset-icon{ transform: rotate(-70deg); }
+
+  .swap-btn{
+    width: 28px; height: 28px;
+    flex: 0 0 auto;
+    border: 2px solid var(--ink-soft);
+    border-radius: 50%;
+    background: var(--paper-2);
+    color: var(--ink-soft);
+    font-size: 13px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex; align-items:center; justify-content:center;
+    margin-bottom: 6px;
+    transition: transform .3s ease, color .15s ease, border-color .15s ease;
+  }
+  .swap-btn:hover{ color: var(--pen-red); border-color: var(--pen-red); transform: rotate(180deg); }
+  .swap-btn:focus-visible{ outline: 2px dashed var(--pen-red); outline-offset: 3px; }
+
+  .error-msg{
+    font-family:'Kalam', cursive;
+    color: var(--pen-red);
+    font-size: 12px;
+  }
+
+  /* ---------- workings: flows left-to-right like reading down a margin ---------- */
+  .workings{
+    flex: 1;
+    min-height: 0;
+    display:flex;
+    flex-direction: row;
+    align-items: stretch;
+    gap: 0;
+  }
+  .step{
+    opacity: 0; transform: translateY(6px); animation: fadeUp .45s ease forwards;
+    flex: 1 1 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 6px 18px;
+    border-left: 1px dashed var(--rule);
+  }
+  .step:first-child{ border-left: none; padding-left: 2px; }
+  @keyframes fadeUp{ to{ opacity:1; transform:none; } }
+
+  .step-label{
+    font-family:'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 0 0 8px 0;
+  }
+
+  .name-row{
+    font-family: 'Caveat', cursive;
+    font-size: clamp(18px, 2.4vw, 24px);
+    font-weight: 600;
+    display: flex;
+    flex-wrap: wrap;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .letter{
+    position: relative;
+    display: inline-block;
+    padding: 0 1px;
+  }
+
+  #stepNames{ flex: 1.1 1 0; }
+
+  .count-block{ display:flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+  .count-number{
+    font-family:'Space Mono', monospace;
+    font-weight: 700;
+    font-size: clamp(26px, 3.4vw, 36px);
+    color: var(--pen-red);
+    line-height: 1;
+  }
+  .tally-wrap{ display:flex; flex-wrap: wrap; gap: 6px; align-items:flex-end; max-width: 140px; }
+  #stepCount{ flex: 0.7 1 0; }
+
+  .flames-row{
+    display:flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    max-width: 220px;
+  }
+  .flame-badge{
+    position: relative;
+    width: 52px; height: 52px;
+    border: 2px solid var(--ink);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    background: var(--paper-2);
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    box-shadow: 2px 2px 0 var(--shadow);
+    transition: opacity .4s ease, transform .4s ease;
+  }
+  .flame-badge .flame-letter{
+    font-family:'Caveat', cursive; font-weight:700; font-size: 20px; line-height:1;
+  }
+  .flame-badge .flame-word{
+    font-family:'Space Mono', monospace; font-size: 6px; letter-spacing: .3px;
+    color: var(--ink-soft); margin-top: 2px; text-transform: uppercase;
+  }
+  .flame-badge.eliminated{ opacity: .38; }
+  .flame-badge.survivor{
+    transform: scale(1.14);
+    border-color: var(--pen-green);
+    background: #F2F7F1;
+  }
+  #stepFlames{ flex: 1.3 1 0; }
+
+  .result-step{
+    text-align: center;
+    align-items: center;
+    flex: 1.3 1 0;
+  }
+  .result-word-wrap{ position: relative; display:inline-block; padding: 8px 20px; }
+  .result-word{
+    font-family:'Caveat', cursive;
+    font-weight: 700;
+    font-size: clamp(28px, 4.2vw, 42px);
+    color: var(--pen-green);
+    position: relative;
+    z-index: 2;
+  }
+  .result-desc{
+    font-family:'Kalam', cursive;
+    font-size: 13px;
+    color: var(--ink-soft);
+    max-width: 34ch;
+    margin: 8px auto 0;
+    line-height: 1.4;
+  }
+
+  .download-btn{
+    margin-top: 12px;
+    font-family:'Kalam', cursive;
+    font-weight: 700;
+    font-size: 13px;
+    color: var(--ink);
+    background: var(--paper-2);
+    border: 2px solid var(--pen-green);
+    border-radius: 255px 15px 225px 15px / 15px 225px 15px 255px;
+    padding: 6px 16px;
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, opacity .2s ease;
+    box-shadow: 2px 2px 0 var(--shadow);
+    opacity: 0;
+    animation: fadeUp .4s ease forwards;
+    animation-delay: .1s;
+  }
+  .download-btn:hover:not(:disabled){ transform: translate(-2px,-2px); box-shadow: 4px 4px 0 var(--shadow); color: var(--pen-green); }
+  .download-btn:active:not(:disabled){ transform: translate(0,0); box-shadow: 1px 1px 0 var(--shadow); }
+  .download-btn:focus-visible{ outline: 2px dashed var(--pen-red); outline-offset: 3px; }
+  .download-btn:disabled{ opacity: .55 !important; cursor: default; }
+
+  footer{
+    flex: 0 0 auto;
+    max-width: 1080px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 4px 24px 8px 74px;
+    font-family:'Space Mono', monospace;
+    font-size: 10px;
+    color: var(--ink-soft);
+    opacity: .6;
+  }
+
+  @media (max-width: 760px){
+    .workings{ flex-direction: column; overflow-y: auto; gap: 4px; }
+    .step{ border-left: none; border-top: 1px dashed var(--rule); padding: 8px 2px; flex: none; }
+    .step:first-child{ border-top: none; }
+    .flames-row, .tally-wrap{ max-width: none; }
+  }
+
+  @media (max-width: 560px){
+    .binding{ display:none; }
+    .margin-line{ left: 18px; }
+    main.sheet{ padding: 12px 16px 8px 34px; }
+    footer{ padding-left: 34px; }
+    body{ height: auto; min-height: 100dvh; overflow-y: auto; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration: .001s !important; transition-duration: .001s !important; }
+  }
+</style>
+</head>
+<body>
+
+  <div class="corner-fold" aria-hidden="true"></div>
+  <div class="binding" aria-hidden="true">
+    <span></span><span></span><span></span><span></span><span></span>
+    <span></span><span></span><span></span><span></span><span></span>
+  </div>
+  <div class="margin-line" aria-hidden="true"></div>
+
+  <main class="sheet">
+    <header>
+      <h1 class="title">FLAMES<span class="flame-dot">.</span></h1>
+      <p class="subtitle">the game everyone scribbled in a notebook margin</p>
+    </header>
+
+    <section class="input-section" id="inputSection">
+      <label class="field">
+        <span class="field-label">Your name</span>
+        <input type="text" id="name1" class="ruled-input" autocomplete="off" placeholder="write it here" maxlength="40" />
+      </label>
+      <button class="swap-btn" id="swapBtn" type="button" title="Swap names" aria-label="Swap the two names">⇄</button>
+      <label class="field">
+        <span class="field-label">Their name</span>
+        <input type="text" id="name2" class="ruled-input" autocomplete="off" placeholder="write it here" maxlength="40" />
+      </label>
+      <div class="go-row">
+        <button id="goBtn" class="go-btn" type="button">work it out</button>
+        <button id="resetBtn" class="reset-btn" type="button" title="Clear everything">
+          <span class="reset-icon">↺</span> reset
+        </button>
+        <span class="error-msg" id="errorMsg" role="status" aria-live="polite"></span>
+      </div>
+    </section>
+
+    <section class="workings" id="workingsSection" hidden aria-live="polite">
+      <div class="step" id="stepNames" style="animation-delay:.02s">
+        <p class="step-label">01 — shared letters</p>
+        <div class="name-row" id="name1Row"></div>
+        <div class="name-row" id="name2Row"></div>
+      </div>
+
+      <div class="step" id="stepCount" hidden>
+        <p class="step-label">02 — what's left</p>
+        <div class="count-block">
+          <span class="count-number" id="countNumber">0</span>
+          <span id="tallyHolder"></span>
+        </div>
+      </div>
+
+      <div class="step" id="stepFlames" hidden>
+        <p class="step-label">03 — count it out</p>
+        <div class="flames-row" id="flamesRow"></div>
+      </div>
+
+      <div class="step result-step" id="stepResult" hidden>
+        <p class="step-label">the verdict</p>
+        <div class="result-word-wrap" id="resultWordWrap">
+          <span class="result-word" id="resultWord"></span>
+        </div>
+        <p class="result-desc" id="resultDesc"></p>
+        <button class="download-btn" id="downloadBtn" type="button" hidden>⬇ download report</button>
+      </div>
+    </section>
+
+    <footer>a pen-and-paper classic, digitized</footer>
+  </main>
+
+<script>
+(function(){
+  "use strict";
+
+  const RESULT_INFO = {
+    F: { word: "Friends",   desc: "Locker-buddy energy — the kind of friendship that survives every seating chart change." },
+    L: { word: "Love",      desc: "Butterflies, confirmed. Somebody's doodling hearts in a margin somewhere." },
+    A: { word: "Affection", desc: "Not quite love, warmer than like — a soft spot you can't fully explain." },
+    M: { word: "Marriage",  desc: "Wedding bells! Time to start practicing the joint signature." },
+    E: { word: "Enemies",   desc: "Petty-rivalry energy. Maybe don't sit together at lunch this week." },
+    S: { word: "Siblings",  desc: "Built-in family — bickering included, no returns accepted." }
+  };
+  const TWIN_RESULT = { word: "Twin Flames", desc: "Every single letter matched. Suspiciously, almost unfairly, compatible." };
+
+  const el = (id) => document.getElementById(id);
+  const name1Input = el('name1'), name2Input = el('name2');
+  const goBtn = el('goBtn'), resetBtn = el('resetBtn'), swapBtn = el('swapBtn'), errorMsg = el('errorMsg');
+  const inputSection = el('inputSection'), workingsSection = el('workingsSection');
+  const name1Row = el('name1Row'), name2Row = el('name2Row');
+  const stepNames = el('stepNames'), stepCount = el('stepCount'), stepFlames = el('stepFlames'), stepResult = el('stepResult');
+  const countNumber = el('countNumber'), tallyHolder = el('tallyHolder');
+  const flamesRow = el('flamesRow');
+  const resultWordWrap = el('resultWordWrap'), resultWord = el('resultWord'), resultDesc = el('resultDesc');
+  const downloadBtn = el('downloadBtn');
+  const GO_LABEL = "work it out";
+
+  let runToken = 0; // bumped on every reset so an in-flight animation can bail out early
+  let lastReport = null; // data needed to render the downloadable report
+
+  const clean = (s) => s.toLowerCase().replace(/[^a-z]/g, "");
+  const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+
+  /* ---------- hand-drawn strike / circle drawing ---------- */
+  function ensureRelative(node){
+    const cs = getComputedStyle(node);
+    if (cs.position === "static") node.style.position = "relative";
+  }
+
+  function drawStrike(container, opts = {}){
+    ensureRelative(container);
+    const w = container.offsetWidth || 20, h = container.offsetHeight || 20;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    Object.assign(svg.style, { position:"absolute", left:"0", top:"0", width:"100%", height:"100%", overflow:"visible", pointerEvents:"none" });
+    const path = document.createElementNS(ns, "path");
+    const j = () => (Math.random() * 6 - 3);
+    const y1 = h * 0.55 + j(), y2 = h * 0.5 + j(), midY = h * 0.5 + (Math.random() * 8 - 4);
+    const x1 = 1, x2 = w - 1, midX = w * 0.5;
+    path.setAttribute("d", `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", opts.color || "var(--pen-red)");
+    path.setAttribute("stroke-width", opts.width || 2.6);
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+    container.appendChild(svg);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+    path.getBoundingClientRect();
+    const dur = opts.duration || 320;
+    path.style.transition = `stroke-dashoffset ${dur}ms ease`;
+    requestAnimationFrame(() => { path.style.strokeDashoffset = 0; });
+    return wait(dur + 20);
+  }
+
+  function drawX(container, opts = {}){
+    ensureRelative(container);
+    const w = container.offsetWidth || 60, h = container.offsetHeight || 60;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    Object.assign(svg.style, { position:"absolute", left:"0", top:"0", width:"100%", height:"100%", overflow:"visible", pointerEvents:"none" });
+    const pad = w * 0.22;
+    [[pad, pad, w - pad, h - pad], [w - pad, pad, pad, h - pad]].forEach((coords) => {
+      const path = document.createElementNS(ns, "path");
+      const [x1, y1, x2, y2] = coords;
+      const midX = (x1 + x2) / 2 + (Math.random() * 6 - 3), midY = (y1 + y2) / 2 + (Math.random() * 6 - 3);
+      path.setAttribute("d", `M ${x1} ${y1} Q ${midX} ${midY} ${x2} ${y2}`);
+      path.setAttribute("fill", "none");
+      path.setAttribute("stroke", opts.color || "var(--pen-red)");
+      path.setAttribute("stroke-width", 3);
+      path.setAttribute("stroke-linecap", "round");
+      svg.appendChild(path);
+      const len = path.getTotalLength();
+      path.style.strokeDasharray = len;
+      path.style.strokeDashoffset = len;
+      path.getBoundingClientRect();
+      path.style.transition = `stroke-dashoffset ${opts.duration || 260}ms ease`;
+      requestAnimationFrame(() => { path.style.strokeDashoffset = 0; });
+    });
+    return wait((opts.duration || 260) + 20);
+  }
+
+  function drawCircle(container, opts = {}){
+    ensureRelative(container);
+    const w = container.offsetWidth || 76, h = container.offsetHeight || 76;
+    const ns = "http://www.w3.org/2000/svg";
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    Object.assign(svg.style, { position:"absolute", left:"0", top:"0", width:"100%", height:"100%", overflow:"visible", pointerEvents:"none" });
+    const path = document.createElementNS(ns, "path");
+    const cx = w / 2, cy = h / 2, rx = w / 2 + 10, ry = h / 2 + 10;
+    const d = `M ${cx - rx * 0.9} ${cy}
+      C ${cx - rx} ${cy - ry * 1.1}, ${cx + rx * 0.35} ${cy - ry * 1.15}, ${cx + rx} ${cy - ry * 0.15}
+      C ${cx + rx * 1.05} ${cy + ry * 0.75}, ${cx + rx * 0.15} ${cy + ry * 1.1}, ${cx - rx * 0.55} ${cy + ry}
+      C ${cx - rx * 1.1} ${cy + ry * 0.5}, ${cx - rx * 1.05} ${cy - ry * 0.35}, ${cx - rx * 0.9} ${cy}`;
+    path.setAttribute("d", d);
+    path.setAttribute("fill", "none");
+    path.setAttribute("stroke", opts.color || "var(--pen-green)");
+    path.setAttribute("stroke-width", 3.2);
+    path.setAttribute("stroke-linecap", "round");
+    svg.appendChild(path);
+    container.appendChild(svg);
+    const len = path.getTotalLength();
+    path.style.strokeDasharray = len;
+    path.style.strokeDashoffset = len;
+    path.getBoundingClientRect();
+    const dur = opts.duration || 650;
+    path.style.transition = `stroke-dashoffset ${dur}ms ease`;
+    requestAnimationFrame(() => { path.style.strokeDashoffset = 0; });
+    return wait(dur + 30);
+  }
+
+  /* ---------- tally marks ---------- */
+  function makeTallyGroup(count){
+    const ns = "http://www.w3.org/2000/svg";
+    const w = 26, h = 30;
+    const svg = document.createElementNS(ns, "svg");
+    svg.setAttribute("viewBox", `0 0 ${w} ${h}`);
+    svg.setAttribute("width", w); svg.setAttribute("height", h);
+    for (let i = 0; i < count && i < 4; i++){
+      const x = 3 + i * 6;
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", x); line.setAttribute("y1", 3);
+      line.setAttribute("x2", x); line.setAttribute("y2", h - 3);
+      line.setAttribute("stroke", "var(--ink)"); line.setAttribute("stroke-width", 2);
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    }
+    if (count === 5){
+      const line = document.createElementNS(ns, "line");
+      line.setAttribute("x1", 1); line.setAttribute("y1", h - 3);
+      line.setAttribute("x2", 24); line.setAttribute("y2", 3);
+      line.setAttribute("stroke", "var(--pen-red)"); line.setAttribute("stroke-width", 2);
+      line.setAttribute("stroke-linecap", "round");
+      svg.appendChild(line);
+    }
+    return svg;
+  }
+
+  function buildTally(n){
+    tallyHolder.innerHTML = "";
+    const wrap = document.createElement("div");
+    wrap.className = "tally-wrap";
+    let remaining = n;
+    while (remaining > 0){
+      const g = Math.min(5, remaining);
+      wrap.appendChild(makeTallyGroup(g));
+      remaining -= g;
+    }
+    tallyHolder.appendChild(wrap);
+  }
+
+  /* ---------- FLAMES logic ---------- */
+  function matchAndCount(raw1, raw2){
+    const c1 = clean(raw1).split("").map((ch) => ({ ch, crossed:false }));
+    const c2 = clean(raw2).split("").map((ch) => ({ ch, crossed:false }));
+    for (const a of c1){
+      if (a.crossed) continue;
+      const b = c2.find((x) => !x.crossed && x.ch === a.ch);
+      if (b){ a.crossed = true; b.crossed = true; }
+    }
+    const remaining = c1.filter((x) => !x.crossed).length + c2.filter((x) => !x.crossed).length;
+    return { c1, c2, remaining };
+  }
+
+  function simulateFlames(n){
+    let letters = ["F","L","A","M","E","S"].map((letter, id) => ({ letter, id }));
+    const order = [];
+    let idx = 0;
+    while (letters.length > 1){
+      const removeIdx = (idx + n - 1) % letters.length;
+      order.push(letters[removeIdx].id);
+      letters.splice(removeIdx, 1);
+      idx = letters.length ? removeIdx % letters.length : 0;
+    }
+    return { order, survivorId: letters[0].id };
+  }
+
+  /* ---------- rendering ---------- */
+  function renderNameRow(rowEl, raw, matched){
+    rowEl.innerHTML = "";
+    let ptr = 0;
+    for (const ch of raw){
+      const span = document.createElement("span");
+      span.className = "letter";
+      if (/[a-z]/i.test(ch)){
+        span.textContent = ch;
+        span.dataset.crossed = matched[ptr] && matched[ptr].crossed ? "1" : "0";
+        ptr++;
+      } else {
+        span.textContent = ch === " " ? "\u00A0" : ch;
+        span.dataset.crossed = "0";
+      }
+      rowEl.appendChild(span);
+    }
+  }
+
+  async function crossMatchedLetters(rowEl){
+    const spans = Array.from(rowEl.querySelectorAll('.letter[data-crossed="1"]'));
+    for (const s of spans){
+      drawStrike(s, { duration: 260 });
+      await wait(55);
+    }
+  }
+
+  function buildFlamesBadges(){
+    flamesRow.innerHTML = "";
+    ["F","L","A","M","E","S"].forEach((letter, id) => {
+      const badge = document.createElement("div");
+      badge.className = "flame-badge";
+      badge.dataset.id = id;
+      badge.innerHTML = `<span class="flame-letter">${letter}</span><span class="flame-word">${RESULT_INFO[letter].word}</span>`;
+      flamesRow.appendChild(badge);
+    });
+  }
+
+  async function runElimination(order, survivorId){
+    for (const id of order){
+      const badge = flamesRow.querySelector(`.flame-badge[data-id="${id}"]`);
+      await drawX(badge, { duration: 240 });
+      badge.classList.add("eliminated");
+      await wait(180);
+    }
+    const survivor = flamesRow.querySelector(`.flame-badge[data-id="${survivorId}"]`);
+    survivor.classList.add("survivor");
+    await drawCircle(survivor, { duration: 550 });
+  }
+
+  function showStep(stepEl){
+    stepEl.hidden = false;
+    stepEl.style.animation = "none";
+    stepEl.offsetHeight;
+    stepEl.style.animation = "";
+  }
+
+  /* ---------- downloadable report (drawn on a canvas, no external libs) ---------- */
+  function wrapCanvasText(ctx, text, x, y, maxWidth, lineHeight){
+    const words = text.split(" ");
+    let line = "";
+    const lines = [];
+    for (const word of words){
+      const test = line ? `${line} ${word}` : word;
+      if (ctx.measureText(test).width > maxWidth && line){
+        lines.push(line);
+        line = word;
+      } else {
+        line = test;
+      }
+    }
+    if (line) lines.push(line);
+    lines.forEach((l, i) => ctx.fillText(l, x, y + i * lineHeight));
+    return y + lines.length * lineHeight;
+  }
+
+  async function buildReportCanvas(report){
+    if (document.fonts && document.fonts.ready){ try { await document.fonts.ready; } catch (e) {} }
+
+    const W = 900, H = 560;
+    const canvas = document.createElement("canvas");
+    canvas.width = W; canvas.height = H;
+    const ctx = canvas.getContext("2d");
+
+    const ink = "#1F3A5F", inkSoft = "#4C6386", paper = "#FAF6EC", paper2 = "#F5EFE0";
+    const rule = "#C3D6EA", margin = "#E7A9A0";
+    const accent = report.twin ? "#A9781F" : "#2E6B4F";
+
+    // paper background + ruled lines
+    ctx.fillStyle = paper;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = rule;
+    ctx.lineWidth = 1;
+    for (let y = 70; y < H; y += 34){
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+    // margin line
+    ctx.strokeStyle = margin;
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(56, 0); ctx.lineTo(56, H); ctx.stroke();
+    // corner fold
+    ctx.fillStyle = paper2;
+    ctx.beginPath();
+    ctx.moveTo(W - 46, 0); ctx.lineTo(W, 0); ctx.lineTo(W, 46); ctx.closePath();
+    ctx.fill();
+
+    const left = 92;
+
+    // title
+    ctx.fillStyle = ink;
+    ctx.font = "700 46px Caveat, cursive";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText("FLAMES", left, 78);
+    ctx.fillStyle = "#B23A2F";
+    ctx.font = "700 46px Caveat, cursive";
+    ctx.fillText(".", left + ctx.measureText("FLAMES").width, 78);
+
+    ctx.fillStyle = inkSoft;
+    ctx.font = "13px Kalam, cursive";
+    ctx.fillText("notebook-margin result", left, 100);
+
+    // names
+    ctx.fillStyle = ink;
+    ctx.font = "600 32px Caveat, cursive";
+    const namesLine = `${report.name1}  +  ${report.name2}`;
+    ctx.fillText(namesLine, left, 152);
+
+    // divider
+    ctx.strokeStyle = rule;
+    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(left, 172); ctx.lineTo(W - 60, 172); ctx.stroke();
+
+    // letters left
+    ctx.fillStyle = inkSoft;
+    ctx.font = "10px 'Space Mono', monospace";
+    ctx.fillText("LETTERS LEFT AFTER CANCELLING", left, 198);
+    ctx.fillStyle = "#B23A2F";
+    ctx.font = "700 30px 'Space Mono', monospace";
+    ctx.fillText(String(report.remaining), left, 232);
+
+    // flames row (skip for twin case)
+    if (!report.twin && report.letters){
+      const startX = left + 90, badgeSize = 46, gap = 14, cy = 214;
+      report.letters.forEach((L, i) => {
+        const x = startX + i * (badgeSize + gap);
+        const cx = x + badgeSize / 2;
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(cx, cy, badgeSize / 2, 0, Math.PI * 2);
+        ctx.fillStyle = paper2;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = L.survivor ? accent : ink;
+        ctx.globalAlpha = L.eliminated ? 0.4 : 1;
+        ctx.stroke();
+        ctx.fillStyle = ink;
+        ctx.font = "700 20px Caveat, cursive";
+        ctx.textAlign = "center";
+        ctx.fillText(L.letter, cx, cy + 7);
+        ctx.textAlign = "left";
+        if (L.eliminated){
+          ctx.strokeStyle = "#B23A2F";
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.moveTo(x + 8, cy - 8); ctx.lineTo(x + badgeSize - 8, cy + 8);
+          ctx.moveTo(x + badgeSize - 8, cy - 8); ctx.lineTo(x + 8, cy + 8);
+          ctx.stroke();
+        }
+        ctx.restore();
+      });
+    }
+
+    // result word, circled
+    const resultY = 320;
+    ctx.fillStyle = accent;
+    ctx.font = "700 58px Caveat, cursive";
+    ctx.textAlign = "center";
+    ctx.fillText(report.word, W / 2, resultY);
+    const wordWidth = ctx.measureText(report.word).width;
+    ctx.strokeStyle = accent;
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(W / 2, resultY - 16, wordWidth / 2 + 30, 40, 0, 0, Math.PI * 2);
+    ctx.stroke();
+
+    // description
+    ctx.fillStyle = inkSoft;
+    ctx.font = "16px Kalam, cursive";
+    wrapCanvasText(ctx, report.desc, W / 2 - 260, resultY + 55, 520, 24);
+    ctx.textAlign = "left";
+
+    // footer
+    ctx.fillStyle = inkSoft;
+    ctx.globalAlpha = 0.7;
+    ctx.font = "11px 'Space Mono', monospace";
+    const dateStr = new Date().toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+    ctx.fillText(`worked out ${dateStr} · a pen-and-paper classic, digitized`, left, H - 26);
+    ctx.globalAlpha = 1;
+
+    return canvas;
+  }
+
+  function slugify(str){
+    return (clean(str) || "name").slice(0, 20);
+  }
+
+  async function handleDownload(){
+    if (!lastReport) return;
+    downloadBtn.disabled = true;
+    const original = downloadBtn.textContent;
+    downloadBtn.textContent = "preparing…";
+    try {
+      const canvas = await buildReportCanvas(lastReport);
+      const link = document.createElement("a");
+      link.download = `flames-${slugify(lastReport.name1)}-${slugify(lastReport.name2)}.png`;
+      link.href = canvas.toDataURL("image/png");
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } finally {
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = original;
+    }
+  }
+
+  async function runSequence(name1, name2){
+    const myToken = ++runToken;
+    const stillActive = () => myToken === runToken;
+
+    goBtn.disabled = true;
+    goBtn.classList.add("loading");
+    goBtn.textContent = "working";
+    workingsSection.hidden = false;
+    [stepCount, stepFlames, stepResult].forEach((s) => { s.hidden = true; });
+    resultWordWrap.querySelectorAll("svg").forEach((s) => s.remove());
+    downloadBtn.hidden = true;
+    lastReport = null;
+
+    const { c1, c2, remaining } = matchAndCount(name1, name2);
+    renderNameRow(name1Row, name1, c1);
+    renderNameRow(name2Row, name2, c2);
+    showStep(stepNames);
+    await wait(250);
+    if (!stillActive()) return;
+    await crossMatchedLetters(name1Row);
+    if (!stillActive()) return;
+    await crossMatchedLetters(name2Row);
+    if (!stillActive()) return;
+    await wait(200);
+    if (!stillActive()) return;
+
+    countNumber.textContent = "0";
+    buildTally(0);
+    showStep(stepCount);
+    countNumber.textContent = String(remaining);
+    buildTally(remaining);
+    await wait(500);
+    if (!stillActive()) return;
+
+    if (remaining === 0){
+      showStep(stepResult);
+      resultWord.textContent = TWIN_RESULT.word;
+      resultWord.style.color = "var(--pen-gold)";
+      resultDesc.textContent = TWIN_RESULT.desc;
+      await wait(50);
+      if (!stillActive()) return;
+      drawCircle(resultWordWrap, { color: "var(--pen-gold)", duration: 700 });
+      lastReport = { name1, name2, remaining, twin: true, letters: null, word: TWIN_RESULT.word, desc: TWIN_RESULT.desc };
+      downloadBtn.hidden = false;
+      resetGoButton();
+      return;
+    }
+
+    buildFlamesBadges();
+    showStep(stepFlames);
+    await wait(350);
+    if (!stillActive()) return;
+
+    const { order, survivorId } = simulateFlames(remaining);
+    await runElimination(order, survivorId);
+    if (!stillActive()) return;
+    await wait(200);
+    if (!stillActive()) return;
+
+    const finalLetter = ["F","L","A","M","E","S"][survivorId];
+    const info = RESULT_INFO[finalLetter];
+    resultWord.textContent = info.word;
+    resultWord.style.color = "var(--pen-green)";
+    resultDesc.textContent = info.desc;
+    showStep(stepResult);
+    await wait(50);
+    if (!stillActive()) return;
+    drawCircle(resultWordWrap, { color: "var(--pen-green)", duration: 700 });
+
+    const letters = ["F","L","A","M","E","S"].map((letter, id) => ({
+      letter,
+      eliminated: order.includes(id),
+      survivor: id === survivorId
+    }));
+    lastReport = { name1, name2, remaining, twin: false, letters, word: info.word, desc: info.desc };
+    downloadBtn.hidden = false;
+    resetGoButton();
+  }
+
+  function resetGoButton(){
+    goBtn.disabled = false;
+    goBtn.classList.remove("loading");
+    goBtn.textContent = GO_LABEL;
+  }
+
+  function cancelRun(){
+    runToken++;
+  }
+
+  function handleGo(){
+    const n1 = name1Input.value.trim();
+    const n2 = name2Input.value.trim();
+    errorMsg.textContent = "";
+    if (!clean(n1) || !clean(n2)){
+      errorMsg.textContent = "✕ write both names first — letters only won't cut it either way";
+      name1Input.focus();
+      return;
+    }
+    runSequence(n1, n2);
+  }
+
+  function resetAll(){
+    cancelRun();
+    workingsSection.hidden = true;
+    downloadBtn.hidden = true;
+    lastReport = null;
+    resetGoButton();
+    name1Input.value = "";
+    name2Input.value = "";
+    errorMsg.textContent = "";
+    name1Input.focus();
+  }
+
+  function handleSwap(){
+    const t = name1Input.value;
+    name1Input.value = name2Input.value;
+    name2Input.value = t;
+    errorMsg.textContent = "";
+    if (!workingsSection.hidden){
+      cancelRun();
+      workingsSection.hidden = true;
+      downloadBtn.hidden = true;
+      lastReport = null;
+      resetGoButton();
+    }
+  }
+
+  goBtn.addEventListener("click", handleGo);
+  resetBtn.addEventListener("click", resetAll);
+  swapBtn.addEventListener("click", handleSwap);
+  downloadBtn.addEventListener("click", handleDownload);
+  [name1Input, name2Input].forEach((inp) => {
+    inp.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") handleGo();
+      if (e.key === "Escape") resetAll();
+    });
+  });
+})();
+</script>
+</body>
+</html>
